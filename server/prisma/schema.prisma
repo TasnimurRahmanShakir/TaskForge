@@ -1,0 +1,260 @@
+// ─── Generator & Datasource ─────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Ekhane url add korar dorkar nei, prisma.config.ts theke nibe
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum GlobalRole {
+  SUPER_USER
+  PROJECT_MANAGER
+  MEMBER
+}
+
+enum ProjectRole {
+  OWNER
+  LEADER
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  ON_TRACK
+  AT_RISK
+  DELAYED
+  COMPLETED
+}
+
+enum TaskStatus {
+  BACKLOG
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  profileImage String?
+  refreshToken String?
+  role         GlobalRole @default(MEMBER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  managedProjects Project[]       @relation("ProjectManager")
+  ledProjects     Project[]       @relation("TeamLeader")
+  projectMembers  ProjectMember[]
+  assignedTasks   TaskAssignee[]
+  comments        Comment[]
+  activityLogs    ActivityLog[]
+  sentInvitations Invitation[]    @relation("InvitedBy")
+
+  @@index([name])
+  @@index([email, name])
+  @@map("users")
+}
+
+// ─── Project ─────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  status      ProjectStatus @default(ON_TRACK)
+  progress    Int           @default(0) // 0-100
+  color       String        @default("bg-primary/10 text-primary")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Manager relation
+  managerId   String
+  manager     User          @relation("ProjectManager", fields: [managerId], references: [id])
+
+  // Team Leader Relation
+  teamLeaderId String?
+  teamLeader   User?          @relation("TeamLeader", fields: [teamLeaderId], references: [id])
+
+  // Relations
+  members     ProjectMember[]
+  tasks       Task[]
+  invitations Invitation[]
+  tags        String[]      @default([])
+
+  @@index([managerId])
+  @@index([teamLeaderId])
+  @@index([status])
+  @@index([name])
+  @@index([createdAt])
+  @@map("projects")
+}
+
+// ─── Project Member (junction with role) ─────────────────────────────────────
+
+model ProjectMember {
+  id       String      @id @default(uuid())
+  role     ProjectRole @default(MEMBER)
+
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_members")
+}
+
+// ─── Invitation ──────────────────────────────────────────────────────────────
+
+model Invitation {
+  id          String       @id @default(uuid())
+  email       String
+  status      InviteStatus @default(PENDING)
+
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedById String
+  invitedBy   User         @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([email, projectId])
+  @@index([email, status])
+  @@index([projectId])
+  @@index([invitedById])
+  @@index([status])
+  @@map("invitations")
+}
+
+// ─── Task ────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  priority    Priority   @default(MEDIUM)
+  status      TaskStatus @default(BACKLOG)
+  type        String? // freeform label: "Strategy", "Design • UI/UX", etc.
+  tags        String[]   @default([])
+  dueDate     DateTime?
+  estimate    String? // freeform: "4 points", "2h", etc.
+  image       String? // optional cover image URL
+  position    Int        @default(0) // ordering within a column
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assignees      TaskAssignee[]
+  checklistItems ChecklistItem[]
+  comments       Comment[]
+  activityLogs   ActivityLog[]
+
+  @@index([projectId, status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([title])
+  @@index([createdAt])
+  @@index([projectId, priority])
+  @@map("tasks")
+}
+
+// ─── Checklist Item (Task Objectives) ────────────────────────────────────────
+
+model ChecklistItem {
+  id        String  @id @default(uuid())
+  title     String
+  completed Boolean @default(false)
+  position  Int     @default(0)
+
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("checklist_items")
+}
+
+// ─── Task Assignee (junction for multiple members) ───────────────────────────
+
+model TaskAssignee {
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+// ─── Comment (Task Discussion) ───────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("comments")
+}
+
+// ─── Activity Log ────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  description String   // e.g. "Status changed to In Progress", "Task created by Alex"
+
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
