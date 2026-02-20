@@ -17,22 +17,39 @@ import {
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialAuthButton } from "@/components/auth/SocialAuthButton";
 import { loginSchema, type LoginFormValues } from "@/lib/schemas";
+import { useAuthStore } from "@/store/useAuthStore";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "", remember: false },
   });
 
-  async function onSubmit(_values: LoginFormValues) {
+  async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    navigate("/dashboard");
-    setIsLoading(false);
+    try {
+      const response: any = await api.post("/auth/login", {
+        email: values.email,
+        password: values.password,
+        rememberMe: values.remember,
+      });
+
+      setAuth(response.user, response.accessToken, response.accessToken);
+  
+
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Login failed:", error);
+      // form.setError("root", { message: "Invalid email or password" });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

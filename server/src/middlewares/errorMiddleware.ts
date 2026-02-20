@@ -6,13 +6,26 @@ export interface CustomError extends Error {
 }
 
 export const errorHandler = (
-  err: CustomError,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
+  let statusCode = err.statusCode || 500;
+  let message = err.message || "Internal Server Error";
+
+  // Handle Multer Errors
+  if (err.name === "MulterError") {
+    statusCode = 400;
+    if (err.code === "LIMIT_FILE_SIZE") {
+      message = "File too large (Max 10MB)";
+    }
+  }
+
+  // Log only 500 errors or major issues if needed
+  if (statusCode === 500) {
+    console.error(`[ERROR] ${statusCode}: ${message}\nSTACK: ${err.stack}`);
+  }
 
   res.status(statusCode).json({
     status: "error",

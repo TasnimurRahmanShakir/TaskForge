@@ -12,13 +12,23 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import type { Project } from "@/lib/types";
+import { getImageUrl } from "@/lib/media";
 
 interface ProjectCardProps {
   project: Project;
 }
 
 export function ProjectCard({ project }: ProjectCardProps) {
-  const { id, name, manager, date, status, team, progress, color } = project;
+  const {
+    id,
+    name,
+    manager,
+    startDate,
+    status,
+    members = [],
+    progress,
+    color,
+  } = project;
   const navigate = useNavigate();
 
   return (
@@ -69,7 +79,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
           {name}
         </h3>
         <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-          <Calendar className="h-3 w-3" /> Started on {date}
+          <Calendar className="h-3 w-3" /> Started on{" "}
+          {new Date(startDate).toLocaleDateString()}
         </p>
       </div>
 
@@ -77,14 +88,25 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Avatar className="h-7 w-7 border border-white/10">
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
-                {manager
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </AvatarFallback>
+              {manager.profileImage ? (
+                <img
+                  src={getImageUrl(manager.profileImage)}
+                  alt={manager.name}
+                  className="aspect-square h-full w-full object-cover"
+                />
+              ) : (
+                <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                  {manager.name
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase() || "U"}
+                </AvatarFallback>
+              )}
             </Avatar>
-            <span className="text-xs font-medium text-white/80">{manager}</span>
+            <span className="text-xs font-medium text-white/80">
+              {manager.name || "Unassigned"}
+            </span>
           </div>
           <Badge
             variant={
@@ -124,19 +146,29 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
       <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
         <div className="flex -space-x-2">
-          {team.map((member, i) => (
+          {members.slice(0, 3).map((member, i) => (
             <Avatar
               key={i}
               className="h-7 w-7 border-2 border-[#0d0d1a] hover:z-10 transition-all cursor-pointer"
             >
-              <AvatarFallback className="bg-white/5 text-[10px] text-muted-foreground">
-                {member}
-              </AvatarFallback>
+              {member.user.profileImage ? (
+                <img
+                  src={getImageUrl(member.user.profileImage)}
+                  alt={member.user.name}
+                  className="aspect-square h-full w-full object-cover"
+                />
+              ) : (
+                <AvatarFallback className="bg-white/5 text-[10px] text-muted-foreground uppercase">
+                  {member.user.name.substring(0, 2)}
+                </AvatarFallback>
+              )}
             </Avatar>
           ))}
-          <div className="h-7 w-7 rounded-full bg-white/5 border-2 border-[#0d0d1a] flex items-center justify-center text-[10px] text-muted-foreground font-bold">
-            +3
-          </div>
+          {members.length > 3 && (
+            <div className="h-7 w-7 rounded-full bg-white/5 border-2 border-[#0d0d1a] flex items-center justify-center text-[10px] text-muted-foreground font-bold">
+              +{members.length - 3}
+            </div>
+          )}
         </div>
         <Button
           variant="ghost"

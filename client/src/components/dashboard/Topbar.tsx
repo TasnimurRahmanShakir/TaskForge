@@ -13,12 +13,23 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/useAuthStore";
+import { getImageUrl } from "@/lib/media";
+
 interface TopbarProps {
   setMobileOpen: (v: boolean) => void;
 }
 
 export function Topbar({ setMobileOpen }: TopbarProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="h-16 lg:h-20 border-b border-white/5 bg-[#0d0d1a]/40 backdrop-blur-xl px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30">
@@ -87,12 +98,7 @@ export function Topbar({ setMobileOpen }: TopbarProps) {
             <Bell className="h-5 w-5" />
             <span className="absolute top-2 right-2 h-2 w-2 bg-primary rounded-full border-2 border-[#0d0d1a]" />
           </Button>
-          <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl px-3 sm:px-4 transition-all shadow-[0_0_20px_-8px_var(--primary)] h-9 lg:h-10">
-            <Plus className="h-4 w-4 shrink-0" />
-            <span className="hidden xs:inline text-xs sm:text-sm">
-              New Task
-            </span>
-          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -100,9 +106,9 @@ export function Topbar({ setMobileOpen }: TopbarProps) {
                 className="relative h-9 w-9 lg:h-10 lg:w-10 rounded-xl p-0 overflow-hidden border border-white/10 shrink-0"
               >
                 <Avatar className="h-full w-full">
-                  <AvatarImage src="/placeholder-user.jpg" />
+                  <AvatarImage src={getImageUrl(user?.profileImage)} />
                   <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                    AM
+                    {user?.name?.substring(0, 2).toUpperCase() || "US"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -114,9 +120,9 @@ export function Topbar({ setMobileOpen }: TopbarProps) {
             >
               <DropdownMenuLabel className="font-normal text-white">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-bold leading-none">Alex Morgan</p>
+                  <p className="text-sm font-bold leading-none">{user?.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    alex@taskforge.com
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -131,7 +137,10 @@ export function Topbar({ setMobileOpen }: TopbarProps) {
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-white/5" />
-              <DropdownMenuItem className="text-red-400 focus:text-red-300 focus:bg-red-400/10 cursor-pointer">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-red-400 focus:text-red-300 focus:bg-red-400/10 cursor-pointer"
+              >
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>

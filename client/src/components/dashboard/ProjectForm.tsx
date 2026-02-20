@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -7,11 +7,13 @@ import {
   X,
   Check,
   ChevronDown,
-  User,
+  User as UserIcon,
   Users as UsersIcon,
   Save,
 } from "lucide-react";
 import { projectSchema, type ProjectFormValues } from "@/lib/schemas";
+import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,44 +73,83 @@ interface ProjectFormProps {
   initialData?: Partial<Project>;
 }
 
+interface User {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
+  const { user: currentUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const isEditing = !!initialData;
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await api.get<{ users: User[] }>("/auth/users");
+        setAvailableUsers(data.users);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       name: initialData?.name ?? "",
-      manager: initialData?.manager ?? "",
-      startDate: initialData?.date
-        ? new Date(initialData.date).toISOString().split("T")[0]
+      manager: initialData?.managerId ?? "",
+      startDate: initialData?.startDate
+        ? new Date(initialData.startDate).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0],
       status:
         (initialData?.status as ProjectFormValues["status"]) ?? "On Track",
-      teamMembers: initialData?.team ?? [],
+      teamMembers: initialData?.memberIds ?? [],
       color:
         initialData?.color ?? "bg-primary/10 text-primary border-primary/20",
     },
   });
 
   async function onSubmit(values: ProjectFormValues) {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log(
-      isEditing ? "Update Project Data:" : "New Project Data:",
-      values,
-    );
-    setIsLoading(false);
-    onSuccess?.(values);
+    try {
+      setIsLoading(true);
+
+      const payload = {
+        name: values.name,
+        startDate: values.startDate,
+        status: values.status.toUpperCase().replace(" ", "_"),
+        color: values.color,
+        managerId: values.manager,
+        memberIds: values.teamMembers,
+        // Since the prompt doesn't have a separate leader field, we can use the manager or first member
+        teamLeaderId: values.manager,
+      };
+
+      if (isEditing) {
+        await api.patch(`/projects/${initialData!.id}`, payload);
+      } else {
+        await api.post("/projects/create", payload);
+      }
+
+      onSuccess?.(values);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save project");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  const toggleTeamMember = (member: string) => {
+  const toggleTeamMember = (memberId: string) => {
     const currentMembers = form.getValues("teamMembers");
     form.setValue(
       "teamMembers",
-      currentMembers.includes(member)
-        ? currentMembers.filter((m) => m !== member)
-        : [...currentMembers, member],
+      currentMembers.includes(memberId)
+        ? currentMembers.filter((m) => m !== memberId)
+        : [...currentMembers, memberId],
     );
     form.trigger("teamMembers");
   };
@@ -158,8 +199,9 @@ export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          {field.value || "Select Manager"}
+                          <UserIcon className="h-4 w-4 text-muted-foreground" />
+                          {availableUsers.find((u) => u.id === field.value)
+                            ?.name || "Select Manager"}
                         </div>
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
@@ -173,18 +215,24 @@ export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
                       Available Managers
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-white/5" />
-                    {MANAGERS_PRESET.map((manager) => (
-                      <DropdownMenuItem
-                        key={manager}
-                        className="py-2.5 cursor-pointer focus:bg-primary/20 focus:text-primary transition-colors gap-2"
-                        onClick={() => field.onChange(manager)}
-                      >
-                        {manager}
-                        {field.value === manager && (
-                          <Check className="ml-auto h-4 w-4" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
+                    {availableUsers
+                      .filter(
+                        (u) =>
+                          u.role === "PROJECT_MANAGER" &&
+                          u.id !== currentUser?.id,
+                      )
+                      .map((user) => (
+                        <DropdownMenuItem
+                          key={user.id}
+                          className="py-2.5 cursor-pointer focus:bg-primary/20 focus:text-primary transition-colors gap-2"
+                          onClick={() => field.onChange(user.id)}
+                        >
+                          {user.name}
+                          {field.value === user.id && (
+                            <Check className="ml-auto h-4 w-4" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <FormMessage className="text-red-400 text-[10px]" />
@@ -300,15 +348,20 @@ export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <UsersIcon className="h-4 w-4 text-muted-foreground mr-1" />
                           {field.value.length > 0 ? (
-                            field.value.map((m) => (
-                              <Badge
-                                key={m}
-                                variant="secondary"
-                                className="h-6 bg-primary/20 text-primary border-primary/20 text-[10px] font-bold px-2 rounded-lg"
-                              >
-                                {m}
-                              </Badge>
-                            ))
+                            field.value.map((id: string) => {
+                              const user = availableUsers.find(
+                                (u) => u.id === id,
+                              );
+                              return (
+                                <Badge
+                                  key={id}
+                                  variant="secondary"
+                                  className="h-6 bg-primary/20 text-primary border-primary/20 text-[10px] font-bold px-2 rounded-lg"
+                                >
+                                  {user?.name || id.substring(0, 4)}
+                                </Badge>
+                              );
+                            })
                           ) : (
                             <span className="text-sm">
                               Select team members...
@@ -327,16 +380,16 @@ export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
                       Project Contributors
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-white/5" />
-                    {TEAM_MEMBERS_PRESET.map((member) => (
+                    {availableUsers.map((user) => (
                       <DropdownMenuCheckboxItem
-                        key={member}
+                        key={user.id}
                         className="py-2.5 cursor-pointer focus:bg-primary/20 focus:text-primary"
-                        checked={field.value.includes(member)}
-                        onCheckedChange={() => toggleTeamMember(member)}
+                        checked={field.value.includes(user.id)}
+                        onCheckedChange={() => toggleTeamMember(user.id)}
                         onSelect={(e) => e.preventDefault()}
                       >
                         <span className="font-bold tracking-wider">
-                          {member}
+                          {user.name}
                         </span>
                       </DropdownMenuCheckboxItem>
                     ))}

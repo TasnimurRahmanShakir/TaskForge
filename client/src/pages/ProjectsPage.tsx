@@ -1,5 +1,5 @@
-import { Plus, Search, Filter, LayoutGrid, List } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search, Filter, LayoutGrid, List, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,38 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ProjectForm } from "@/components/dashboard/ProjectForm";
-import { PROJECTS_DATA } from "@/lib/constants";
+import { HasPermission } from "@/components/auth/HasPermission";
+import { api } from "@/lib/api";
+import { Project } from "@/lib/types";
 
 export default function ProjectsPage() {
   const [open, setOpen] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<{ projects: Project[] }>("/projects");
+      setProjects(data.projects);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuccess = () => {
+    setOpen(false);
+    fetchProjects();
+  };
 
   return (
     <DashboardLayout>
@@ -49,25 +77,28 @@ export default function ProjectsPage() {
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground font-black h-10 sm:h-11 px-4 sm:px-6 rounded-xl shadow-[0_0_25px_-10px_var(--color-primary)] transition-all text-xs sm:text-sm">
-                  <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" /> Launch
-                  Project
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <DialogHeader className="mb-4">
-                  <DialogTitle className="text-2xl font-black tracking-tight">
-                    Launch New Project
-                  </DialogTitle>
-                  <p className="text-sm text-muted-foreground font-medium">
-                    Set up your project workspace and assemble your team.
-                  </p>
-                </DialogHeader>
-                <ProjectForm onSuccess={() => setOpen(false)} />
-              </DialogContent>
-            </Dialog>
+
+            <HasPermission roles={["SUPER_USER", "PROJECT_MANAGER"]}>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground font-black h-10 sm:h-11 px-4 sm:px-6 rounded-xl shadow-[0_0_25px_-10px_var(--color-primary)] transition-all text-xs sm:text-sm">
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />{" "}
+                    Launch Project
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto custom-scrollbar">
+                  <DialogHeader className="mb-4">
+                    <DialogTitle className="text-2xl font-black tracking-tight">
+                      Launch New Project
+                    </DialogTitle>
+                    <p className="text-sm text-muted-foreground font-medium">
+                      Set up your project workspace and assemble your team.
+                    </p>
+                  </DialogHeader>
+                  <ProjectForm onSuccess={handleSuccess} />
+                </DialogContent>
+              </Dialog>
+            </HasPermission>
           </div>
         </div>
 
@@ -95,17 +126,35 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {PROJECTS_DATA.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex h-[400px] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-400">{error}</p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
+            <p className="text-muted-foreground">
+              No projects found. Launch one to get started!
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
 
-        <div className="text-center py-12">
-          <p className="text-sm text-muted-foreground font-medium">
-            Showing 6 active projects across 4 departments.
-          </p>
-        </div>
+            <div className="text-center py-12">
+              <p className="text-sm text-muted-foreground font-medium">
+                Showing {projects.length} active projects.
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

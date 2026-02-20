@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthStore } from "@/store/useAuthStore";
+import { getImageUrl } from "@/lib/media";
 
 interface NavItem {
   label: string;
@@ -51,11 +53,8 @@ const navItems: NavItem[] = [
     icon: CheckSquare,
     href: "/tasks",
     group: "Main Menu",
-    badge: 12,
-  }
+  },
 ];
-
-const groups = ["Main Menu", ""];
 
 export function Sidebar({
   collapsed,
@@ -64,7 +63,20 @@ export function Sidebar({
   setMobileOpen,
 }: SidebarProps) {
   const location = useLocation();
+  const { user } = useAuthStore();
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  const displayNavItems = [...navItems];
+  if (user?.role === "SUPER_USER") {
+    displayNavItems.push({
+      label: "Users",
+      icon: Users,
+      href: "/users",
+      group: "Administration",
+    });
+  }
+
+  const groups = Array.from(new Set(displayNavItems.map((i) => i.group)));
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -135,7 +147,7 @@ export function Sidebar({
                     {group}
                   </h3>
                 )}
-                {navItems
+                {displayNavItems
                   .filter((item) => item.group === group)
                   .map((item) => {
                     const isActive = location.pathname === item.href;
@@ -172,18 +184,18 @@ export function Sidebar({
         <div className="p-4 border-t border-white/5 space-y-4">
           <div className="flex items-center gap-3 px-2">
             <Avatar className="h-10 w-10 border border-white/10">
-              <AvatarImage src="/placeholder-user.jpg" />
+              <AvatarImage src={getImageUrl(user?.profileImage)} />
               <AvatarFallback className="bg-primary/20 text-primary font-bold">
-                AM
+                {user?.name?.substring(0, 2).toUpperCase() || "US"}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="text-sm font-semibold text-white truncate">
-                  Alex Morgan
+                  {user?.name}
                 </span>
                 <span className="text-[10px] text-muted-foreground truncate">
-                  Product Manager
+                  {user?.role}
                 </span>
               </div>
             )}

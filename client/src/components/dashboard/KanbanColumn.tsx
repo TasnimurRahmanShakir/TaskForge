@@ -2,6 +2,7 @@ import { MoreHorizontal, Plus } from "lucide-react";
 import { TaskCard } from "./TaskCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { HasPermission } from "@/components/auth/HasPermission";
 import type { Task, ColumnId } from "@/lib/types";
 
 interface KanbanColumnProps {
@@ -12,11 +13,11 @@ interface KanbanColumnProps {
   columnId: ColumnId;
   onTaskClick: (task: Task) => void;
   onStatusChange: (
-    taskId: number,
+    taskId: string | number,
     fromColumnId: ColumnId,
     toColumnId: ColumnId,
   ) => void;
-  onDelete: (taskId: number, columnId: ColumnId) => void;
+  onDelete: (taskId: string | number, columnId: ColumnId) => void;
 }
 
 export function KanbanColumn({
@@ -58,15 +59,17 @@ export function KanbanColumn({
               onDelete={onDelete}
             />
           ))}
-          <button
-            onClick={() =>
-              onTaskClick({ id: 0, title: "", priority: "Medium" })
-            }
-            className="w-full py-3 h-12 rounded-xl border border-dashed border-white/5 text-muted-foreground/30 hover:text-white/60 hover:border-white/20 transition-all font-bold text-xs flex items-center justify-center gap-2 group"
-          >
-            <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />{" "}
-            Add Task
-          </button>
+          <HasPermission roles={["SUPER_USER", "PROJECT_MANAGER", "MEMBER"]}>
+            <button
+              onClick={() =>
+                onTaskClick({ id: 0, title: "", priority: "Medium" })
+              }
+              className="w-full py-3 h-12 rounded-xl border border-dashed border-white/5 text-muted-foreground/30 hover:text-white/60 hover:border-white/20 transition-all font-bold text-xs flex items-center justify-center gap-2 group"
+            >
+              <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />{" "}
+              Add Task
+            </button>
+          </HasPermission>
         </div>
       </ScrollArea>
     </div>

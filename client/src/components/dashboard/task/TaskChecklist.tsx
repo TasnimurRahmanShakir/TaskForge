@@ -5,13 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Objective } from "@/lib/types";
+import { api } from "@/lib/api";
 
 interface TaskChecklistProps {
+  taskId?: string | number;
   objectives?: Objective[];
   onChange: (objectives: Objective[]) => void;
 }
 
 export function TaskChecklist({
+  taskId,
   objectives = [],
   onChange,
 }: TaskChecklistProps) {
@@ -27,10 +30,27 @@ export function TaskChecklist({
     setNewItem("");
   };
 
-  const toggleItem = (i: number) => {
+  const toggleItem = async (i: number) => {
+    const item = objectives[i];
     const updated = [...objectives];
-    updated[i] = { ...updated[i], completed: !updated[i].completed };
+    const newStatus = !item.completed;
+    updated[i] = { ...item, completed: newStatus };
+
+    // Optimistic update
     onChange(updated);
+
+    // If item has an ID and we have a taskId, sync immediately
+    if (item.id && taskId) {
+      try {
+        await api.patch(`/tasks/${taskId}/checklist/${item.id}/toggle`);
+      } catch (error) {
+        console.error("Error toggling checklist item:", error);
+        // Rollback on error
+        const rolledBack = [...objectives];
+        rolledBack[i] = { ...item, completed: !newStatus };
+        onChange(rolledBack);
+      }
+    }
   };
 
   const removeItem = (i: number) =>

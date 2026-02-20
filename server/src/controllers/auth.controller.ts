@@ -1,5 +1,6 @@
 import { Response, Request } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import prisma from "../config/db";
 import catchAsync from "../utils/catchAsync";
 import fs from "fs";
@@ -50,7 +51,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 
   // 2. Generate tokens
   const { accessToken, refreshToken } = generateTokens(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, name: user.name },
     rememberMe || false,
   );
 
@@ -70,6 +71,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        profileImage: user.profileImage,
       },
       accessToken,
     },
@@ -172,3 +174,188 @@ export const register = catchAsync(async (req: any, res: Response) => {
     throw error; // Rethrow to let global error handler handle it
   }
 });
+
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ */
+export const getMe = catchAsync(async (req: any, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      profileImage: true,
+    },
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: { user },
+  });
+});
+
+/**
+ * @openapi
+ * /api/auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ */
+export const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  const { refreshToken: token } = req.body;
+
+  if (!token) {
+    return res.status(401).json({
+      status: "error",
+      message: "Refresh token is required",
+    });
+  }
+
+  // 1. Verify token
+  let decoded: any;
+  try {
+    decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET || "refresh_secret",
+    );
+  } catch (err) {
+    return res.status(401).json({
+      status: "error",
+      message: "Invalid or expired refresh token",
+    });
+  }
+
+  // 2. Find user and check if token matches
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+  });
+
+  if (!user || user.refreshToken !== token) {
+    return res.status(401).json({
+      status: "error",
+      message: "Invalid refresh token session",
+    });
+  }
+
+  // 3. Generate new tokens
+  // Note: We issue a new refresh token too (rotation)
+  const tokens = generateTokens({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name,
+  });
+
+  // 4. Update refresh token in DB
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken: tokens.refreshToken },
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    },
+  });
+});
+
+/**
+ * Get all users (Super Admin only)
+ */
+export const getUsers = catchAsync(async (req: Request, res: Response) => {
+  const { search, role } = req.query;
+  const searchStr = typeof search === "string" ? search : undefined;
+  const roleFilter = typeof role === "string" ? role : undefined;
+
+  const where: any = {};
+
+  if (searchStr) {
+    where.OR = [
+      { name: { contains: searchStr, mode: "insensitive" as const } },
+      { email: { contains: searchStr, mode: "insensitive" as const } },
+    ];
+  }
+
+  if (roleFilter) {
+    where.role = roleFilter;
+  }
+
+  const users = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      profileImage: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: { users },
+  });
+});
+
+/**
+ * Delete user (Super Admin only)
+ */
+export const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = typeof id === "string" ? id : undefined;
+
+  if (!userId) {
+    return res.status(400).json({
+      status: "error",
+      message: "User ID is required.",
+    });
+  }
+
+  // Prevent self-deletion if needed, or just delete
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "User deleted successfully",
+  });
+});
+
+/**
+ * Update user role (Super Admin only)
+ */
+export const updateUserRole = catchAsync(
+  async (req: Request, res: Response) => {
+    const { userId, role } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "User role updated successfully",
+      data: { user: updatedUser },
+    });
+  },
+);

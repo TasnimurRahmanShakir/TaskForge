@@ -14,6 +14,8 @@ export const signupSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters." }),
+  role: z.enum(["SUPER_USER", "PROJECT_MANAGER", "MEMBER"]),
+  profileImage: z.any().optional(),
 });
 
 export const projectSchema = z.object({
@@ -32,21 +34,29 @@ export const projectSchema = z.object({
 export const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  priority: z.enum(["Urgent", "High", "Medium", "Low", "Completed"]),
-  assignee: z
-    .object({
-      name: z.string(),
-      image: z.string().optional(),
-      initials: z.string().min(1),
-    })
-    .nullable()
-    .optional(),
+  priority: z.string(), // Allowing string for flexibility, validated in UI
+  assignees: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        name: z.string(),
+        image: z.string().optional(),
+        initials: z.string().optional(),
+      }),
+    )
+    .optional()
+    .default([]),
   dueDate: z.string().optional(),
   estimate: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  objectives: z
+  status: z.string().optional(),
+  checklistItems: z
     .array(
-      z.object({ title: z.string(), completed: z.boolean().default(false) }),
+      z.object({
+        id: z.string().optional(),
+        title: z.string(),
+        completed: z.boolean().default(false),
+      }),
     )
     .optional(),
 });

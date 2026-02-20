@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Camera, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Form,
   FormControl,
@@ -16,22 +17,71 @@ import {
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialAuthButton } from "@/components/auth/SocialAuthButton";
 import { signupSchema, type SignupFormValues } from "@/lib/schemas";
+import { useAuthStore } from "@/store/useAuthStore";
+import { api } from "@/lib/api";
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const navigate = useNavigate();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: "MEMBER",
+    },
   });
 
-  async function onSubmit(_values: SignupFormValues) {
+  const handleImageChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    onChange: (file: File | null) => void,
+  ) => {
+    const file = e.target.files?.[0] || null;
+    onChange(file);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    navigate("/dashboard");
-    setIsLoading(false);
+    try {
+      const formData = new FormData();
+      formData.append("name", values.name);
+      formData.append("email", values.email);
+      formData.append("password", values.password);
+      formData.append("role", values.role || "MEMBER");
+      if (values.profileImage) {
+        formData.append("profileImage", values.profileImage);
+      }
+
+      await api.post("/auth/register", formData);
+
+      // Auto-login after signup
+      const loginRes: any = await api.post("/auth/login", {
+        email: values.email,
+        password: values.password,
+      });
+
+      setAuth(loginRes.user, loginRes.accessToken, loginRes.accessToken);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Signup failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -63,25 +113,95 @@ export default function SignupPage() {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground/90 font-medium">
-                  Full Name
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="John Doe"
-                    {...field}
-                    className="h-11 bg-white/3 border-white/10 focus:border-primary/40 transition-all placeholder:text-muted-foreground/30"
-                  />
-                </FormControl>
-                <FormMessage className="text-xs text-red-400/80" />
-              </FormItem>
-            )}
-          />
+          <div className="flex flex-col items-center gap-4 mb-6">
+            <FormField
+              control={form.control}
+              name="profileImage"
+              render={({ field: { onChange, value: _value, ...field } }) => (
+                <FormItem className="flex flex-col items-center">
+                  <div className="relative group">
+                    <Avatar className="h-24 w-24 border-2 border-white/10 group-hover:border-primary/50 transition-all duration-300 shadow-xl overflow-hidden bg-[#0d0d1a]">
+                      <AvatarImage
+                        src={imagePreview || ""}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-primary/5 text-primary text-2xl font-black">
+                        {form.watch("name")?.substring(0, 2).toUpperCase() ||
+                          "AM"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label
+                      htmlFor="profileImage"
+                      className="absolute bottom-0 right-0 h-8 w-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:scale-110 transition-transform duration-200 border-2 border-[#0d0d1a]"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <input
+                        id="profileImage"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        {...field}
+                        value=""
+                        onChange={(e) => handleImageChange(e, onChange)}
+                      />
+                    </label>
+                  </div>
+                  <FormMessage className="text-xs text-red-400/80" />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground/90 font-medium">
+                    Full Name
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="John Doe"
+                      {...field}
+                      className="h-11 bg-white/3 border-white/10 focus:border-primary/40 transition-all placeholder:text-muted-foreground/30"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-xs text-red-400/80" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground/90 font-medium">
+                    Join as
+                  </FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="flex h-11 w-full rounded-md border border-white/10 bg-white/3 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 focus:border-primary/40 transition-all text-white appearance-none cursor-pointer"
+                    >
+                      <option value="MEMBER" className="bg-[#0d0d1a]">
+                        Member
+                      </option>
+                      <option value="PROJECT_MANAGER" className="bg-[#0d0d1a]">
+                        Project Manager
+                      </option>
+                      <option value="SUPER_USER" className="bg-[#0d0d1a]">
+                        Super User
+                      </option>
+                    </select>
+                  </FormControl>
+                  <FormMessage className="text-xs text-red-400/80" />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

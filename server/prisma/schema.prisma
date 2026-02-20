@@ -100,10 +100,11 @@ model Project {
   teamLeader   User?          @relation("TeamLeader", fields: [teamLeaderId], references: [id])
 
   // Relations
-  members     ProjectMember[]
-  tasks       Task[]
-  invitations Invitation[]
-  tags        String[]      @default([])
+  members      ProjectMember[]
+  tasks        Task[]
+  invitations  Invitation[]
+  activityLogs ActivityLog[]
+  tags         String[]      @default([])
 
   @@index([managerId])
   @@index([teamLeaderId])
@@ -163,12 +164,10 @@ model Task {
   description String?
   priority    Priority   @default(MEDIUM)
   status      TaskStatus @default(BACKLOG)
-  type        String? // freeform label: "Strategy", "Design • UI/UX", etc.
   tags        String[]   @default([])
   dueDate     DateTime?
   estimate    String? // freeform: "4 points", "2h", etc.
   image       String? // optional cover image URL
-  position    Int        @default(0) // ordering within a column
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -246,14 +245,17 @@ model ActivityLog {
   id          String   @id @default(uuid())
   description String   // e.g. "Status changed to In Progress", "Task created by Alex"
 
-  taskId      String
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
 
   @@index([taskId])
+  @@index([projectId])
   @@index([userId])
   @@index([createdAt])
   @@map("activity_logs")

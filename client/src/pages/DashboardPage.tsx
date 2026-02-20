@@ -11,8 +11,10 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { ProductivityChart } from "@/components/dashboard/ProductivityChart";
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function DashboardPage() {
+  const { user } = useAuthStore();
   return (
     <DashboardLayout>
       <div className="space-y-8 max-w-[1600px] mx-auto">
@@ -21,7 +23,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
               Welcome back,{" "}
               <span className="bg-linear-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-                Alex
+                {user?.name}
               </span>
             </h1>
             <p className="text-muted-foreground font-medium">

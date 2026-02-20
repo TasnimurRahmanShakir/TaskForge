@@ -21,74 +21,122 @@ const ALL_TASKS: (Task & { columnId: ColumnId })[] = [
     id: 1,
     title: "Draft Campaign Brief for Q4",
     priority: "High",
-    type: "Strategy",
     dueDate: "Oct 24",
-    assignee: { name: "John Doe", initials: "JD", image: "" },
+    assignees: [
+      {
+        id: "33333333-3333-3333-3333-333333333333",
+        name: "John Doe",
+        initials: "JD",
+        image: "",
+      },
+    ],
     columnId: "todo",
   },
   {
     id: 2,
     title: "Competitor Analysis Report",
     priority: "Medium",
-    type: "Research",
     dueDate: "Oct 26",
-    assignee: { name: "Alex Morgan", initials: "AM", image: "" },
+    assignees: [
+      {
+        id: "22222222-2222-2222-2222-222222222222",
+        name: "Alex Morgan",
+        initials: "AM",
+        image: "",
+      },
+    ],
     columnId: "todo",
   },
   {
     id: 3,
     title: "Design Hero Assets for Landing Page",
     priority: "Urgent",
-    type: "Design • UI/UX",
     dueDate: "Tomorrow",
     image:
       "https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=400",
-    assignee: { name: "Sarah Konor", initials: "SK", image: "" },
+    assignees: [
+      {
+        id: "55555555-5555-5555-5555-555555555555",
+        name: "Sarah Konor",
+        initials: "SK",
+        image: "",
+      },
+    ],
     columnId: "inprogress",
   },
   {
     id: 4,
     title: "Copywriting for About Us Page",
     priority: "Low",
-    type: "Content",
     dueDate: "Oct 30",
-    assignee: { name: "Elena Morgan", initials: "EM", image: "" },
+    assignees: [
+      {
+        id: "66666666-6666-6666-6666-666666666666",
+        name: "Elena Morgan",
+        initials: "EM",
+        image: "",
+      },
+    ],
     columnId: "inprogress",
   },
   {
     id: 5,
     title: "Legal Approval for Terms",
     priority: "Medium",
-    type: "Legal",
     dueDate: "Oct 22",
-    assignee: { name: "John Doe", initials: "JD", image: "" },
+    assignees: [
+      {
+        id: "33333333-3333-3333-3333-333333333333",
+        name: "John Doe",
+        initials: "JD",
+        image: "",
+      },
+    ],
     columnId: "review",
   },
   {
     id: 6,
     title: "QA Testing: Sign-up Flow",
     priority: "High",
-    type: "QA • Bug Fix",
     dueDate: "Oct 25",
-    assignee: { name: "Chris Evans", initials: "CE", image: "" },
+    assignees: [
+      {
+        id: "77777777-7777-7777-7777-777777777777",
+        name: "Chris Evans",
+        initials: "CE",
+        image: "",
+      },
+    ],
     columnId: "review",
   },
   {
     id: 7,
     title: "Project Kickoff Meeting",
     priority: "Completed",
-    type: "Admin",
     dueDate: "Oct 15",
-    assignee: { name: "Rachel Lee", initials: "RL", image: "" },
+    assignees: [
+      {
+        id: "88888888-8888-8888-8888-888888888888",
+        name: "Rachel Lee",
+        initials: "RL",
+        image: "",
+      },
+    ],
     columnId: "done",
   },
   {
     id: 8,
     title: "Set Up Analytics Dashboard",
     priority: "Completed",
-    type: "Tech",
     dueDate: "Oct 18",
-    assignee: { name: "Alex Morgan", initials: "AM", image: "" },
+    assignees: [
+      {
+        id: "22222222-2222-2222-2222-222222222222",
+        name: "Alex Morgan",
+        initials: "AM",
+        image: "",
+      },
+    ],
     columnId: "done",
   },
 ];
@@ -109,12 +157,7 @@ export default function TasksPage() {
               Manage and track all tasks across your projects.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground font-black h-10 sm:h-11 px-4 sm:px-6 rounded-xl shadow-[0_0_25px_-10px_var(--color-primary)] transition-all text-xs sm:text-sm">
-              <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-              New Task
-            </Button>
-          </div>
+          <div className="flex items-center gap-3"></div>
         </div>
 
         {/* Toolbar */}

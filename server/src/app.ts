@@ -1,6 +1,9 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
+import projectRoutes from "./routes/project.routes";
+import taskRoutes from "./routes/task.routes";
+import commentRoutes from "./routes/comment.routes";
 import { errorHandler } from "./middlewares/errorMiddleware";
 
 import path from "path";
@@ -29,6 +32,9 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/comments", commentRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response, next: NextFunction) => {

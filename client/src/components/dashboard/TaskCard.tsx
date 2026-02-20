@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Task, ColumnId } from "@/lib/types";
+import { getImageUrl } from "@/lib/media";
+import { useNavigate } from "react-router-dom";
 
 interface WorkflowStep {
   label: string;
@@ -67,11 +69,11 @@ interface TaskCardProps {
   columnId: ColumnId;
   onClick?: () => void;
   onStatusChange?: (
-    taskId: number,
+    taskId: string | number,
     fromColumnId: ColumnId,
     toColumnId: ColumnId,
   ) => void;
-  onDelete?: (taskId: number, columnId: ColumnId) => void;
+  onDelete?: (taskId: string | number, columnId: ColumnId) => void;
 }
 
 export function TaskCard({
@@ -81,8 +83,13 @@ export function TaskCard({
   onStatusChange,
   onDelete,
 }: TaskCardProps) {
-  const { title, priority, tags, dueDate, assignee, image, type } = task;
+  const navigate = useNavigate();
+  const { title, priority, tags, dueDate, assignees, image } = task;
   const action = WORKFLOW[columnId];
+
+  const handleCardClick = () => {
+    navigate(`/projects/${task.projectId}/tasks/${task.id}`);
+  };
 
   const handleAction = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -90,7 +97,10 @@ export function TaskCard({
   };
 
   return (
-    <div className="group bg-[#1a1a2e]/40 backdrop-blur-md border border-white/5 rounded-xl p-4 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-primary/5 select-none">
+    <div
+      onClick={handleCardClick}
+      className="group bg-[#1a1a2e]/40 backdrop-blur-md border border-white/5 rounded-xl p-4 hover:border-primary/30 transition-all duration-300 shadow-lg hover:shadow-primary/5 select-none cursor-pointer"
+    >
       {/* Priority + ··· Menu */}
       <div className="flex justify-between items-start mb-3">
         <Badge
@@ -121,7 +131,7 @@ export function TaskCard({
               className="gap-2.5 py-2 cursor-pointer text-white/70 hover:text-white focus:bg-white/5 focus:text-white"
               onClick={(e) => {
                 e.stopPropagation();
-                onClick?.();
+                handleCardClick();
               }}
             >
               <Eye className="h-3.5 w-3.5 text-white/40" />
@@ -155,11 +165,6 @@ export function TaskCard({
       <h4 className="text-sm font-bold text-white group-hover:text-primary transition-colors leading-snug mb-2">
         {title}
       </h4>
-      {type && (
-        <p className="text-[10px] text-muted-foreground font-medium mb-3">
-          {type}
-        </p>
-      )}
 
       {image && (
         <div className="relative h-28 w-full rounded-lg overflow-hidden mb-4 border border-white/5">
@@ -172,9 +177,9 @@ export function TaskCard({
         </div>
       )}
 
-      {tags && tags.length > 0 && (
+      {task.tags && task.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2 mb-4">
-          {tags.map((tag) => (
+          {task.tags.map((tag) => (
             <span
               key={tag}
               className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground/60 border border-white/5"
@@ -182,6 +187,24 @@ export function TaskCard({
               {tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {task.checklistItems && task.checklistItems.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-4">
+          <CheckCheck className="h-3 w-3 text-emerald-500/70" />
+          <span className="text-[10px] font-bold text-muted-foreground/60 tracking-wider transition-colors group-hover:text-emerald-500/80">
+            {task.checklistItems.filter((i) => i.completed).length}/
+            {task.checklistItems.length}
+          </span>
+          <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500/40 rounded-full transition-all duration-500"
+              style={{
+                width: `${(task.checklistItems.filter((i) => i.completed).length / task.checklistItems.length) * 100}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -215,13 +238,25 @@ export function TaskCard({
           )}
           <span>{dueDate}</span>
         </div>
-        {assignee && (
-          <Avatar className="h-6 w-6 border border-white/10 ring-2 ring-[#0d0d1a]">
-            <AvatarImage src={assignee.image} />
-            <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
-              {assignee.initials}
-            </AvatarFallback>
-          </Avatar>
+        {task.assignees && task.assignees.length > 0 && (
+          <div className="flex -space-x-2 overflow-hidden">
+            {task.assignees.slice(0, 3).map((a, i) => (
+              <Avatar
+                key={i}
+                className="h-6 w-6 border-2 border-[#1a1a2e] ring-2 ring-[#0d0d1a]"
+              >
+                <AvatarImage src={getImageUrl(a.user.profileImage)} />
+                <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
+                  {a.user.name.substring(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {task.assignees.length > 3 && (
+              <div className="h-6 w-6 rounded-full bg-white/5 border-2 border-[#1a1a2e] flex items-center justify-center text-[8px] text-white/40 font-black">
+                +{task.assignees.length - 3}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

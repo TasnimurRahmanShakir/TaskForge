@@ -12,11 +12,11 @@ interface KanbanBoardProps {
   columns: KanbanColumnType[];
   onTaskClick: (task: Task) => void;
   onStatusChange: (
-    taskId: number,
+    taskId: string | number,
     fromColumnId: ColumnId,
     toColumnId: ColumnId,
   ) => void;
-  onDelete: (taskId: number, columnId: ColumnId) => void;
+  onDelete: (taskId: string | number, columnId: ColumnId) => void;
 }
 
 export function KanbanBoard({

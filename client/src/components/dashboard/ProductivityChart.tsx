@@ -75,7 +75,7 @@ export function ProductivityChart() {
         </div>
       </div>
       <div className="flex-1 w-full min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
           <AreaChart
             data={data}
             margin={{ top: 0, right: 0, left: -20, bottom: 0 }}

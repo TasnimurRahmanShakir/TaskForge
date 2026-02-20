@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Calendar, ChevronDown, Zap, User } from "lucide-react";
 import { taskSchema, type TaskFormValues } from "@/lib/schemas";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +46,7 @@ interface StatusOption {
   text: string;
 }
 interface AssigneePreset {
+  id: string;
   name: string;
   initials: string;
   image: string;
@@ -66,17 +68,25 @@ const STATUS_OPTIONS: StatusOption[] = [
 
 const ASSIGNEES_PRESET: AssigneePreset[] = [
   {
+    id: "11111111-1111-1111-1111-111111111111",
     name: "Sarah Jenkins",
     initials: "SJ",
     image: "https://i.pravatar.cc/150?u=sj",
   },
   {
+    id: "22222222-2222-2222-2222-222222222222",
     name: "Alex Morgan",
     initials: "AM",
     image: "https://i.pravatar.cc/150?u=am",
   },
-  { name: "John Doe", initials: "JD", image: "https://i.pravatar.cc/150?u=jd" },
   {
+    id: "33333333-3333-3333-3333-333333333333",
+    name: "John Doe",
+    initials: "JD",
+    image: "https://i.pravatar.cc/150?u=jd",
+  },
+  {
+    id: "44444444-4444-4444-4444-444444444444",
     name: "Mike Ross",
     initials: "MR",
     image: "https://i.pravatar.cc/150?u=mr",
@@ -99,16 +109,18 @@ interface TaskFormProps {
   onSuccess?: () => void;
   initialData?: Partial<Task>;
   projectName?: string;
+  projectId?: string;
 }
 
 export function TaskForm({
   onSuccess,
   initialData,
   projectName = "Project Alpha",
+  projectId,
 }: TaskFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [objectives, setObjectives] = useState<Objective[]>(
-    initialData?.objectives ?? [],
+  const [checklist, setChecklist] = useState<Objective[]>(
+    initialData?.checklistItems || [],
   );
   const [activeTab, setActiveTab] = useState<TabId>("details");
 
@@ -119,35 +131,75 @@ export function TaskForm({
       title: initialData?.title ?? "",
       description: initialData?.description ?? "",
       priority: initialData?.priority ?? "Medium",
-      assignee: initialData?.assignee ?? null,
+      assignees:
+        initialData?.assignees?.map((a) => ({
+          id: a.user.id,
+          name: a.user.name,
+          image: a.user.profileImage,
+          initials: a.user.name
+            .split(" ")
+            .map((n) => n[0])
+            .join(""),
+        })) ?? [],
       dueDate: initialData?.dueDate ?? "",
       estimate: initialData?.estimate ?? "",
       tags: initialData?.tags ?? ["Marketing", "Q3"],
+      status: initialData?.status ?? "Backlog",
+      checklistItems: initialData?.checklistItems ?? [],
     },
   });
 
   const tags = form.watch("tags") ?? [];
   const priority = form.watch("priority");
-  const status = form.watch("status" as keyof TaskFormValues) as
-    | string
-    | undefined;
+  const status = form.watch("status");
 
   const currentPriority = PRIORITY_OPTIONS.find((p) => p.label === priority);
   const currentStatus = STATUS_OPTIONS.find((s) => s.label === status);
-  const pendingCount = objectives.filter((o) => !o.completed).length;
+  const pendingCount = checklist.filter((o) => !o.completed).length;
 
   const onSubmit = async (values: TaskFormValues) => {
+    console.log("Submitting Task Form:", values);
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    console.log("Task Saved:", { ...values, objectives });
-    setIsLoading(false);
-    onSuccess?.();
+    try {
+      const isEditing = !!initialData?.id;
+
+      const payload = {
+        ...values,
+        checklist: checklist,
+        assignees: values.assignees?.map((a) => a.id) || [],
+        projectId:
+          initialData?.projectId ||
+          projectId ||
+          "99999999-9999-9999-9999-999999999999",
+      };
+
+      console.log("Submission Payload:", payload);
+
+      if (isEditing) {
+        await api.patch(`/tasks/${initialData.id}`, payload);
+      } else {
+        await api.post("/tasks", payload);
+      }
+
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error saving task:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onError = (errors: any) => {
+    console.log("Form Validation Errors:", errors);
+    if (errors.title || errors.status || errors.priority) {
+      setActiveTab("details");
+    }
   };
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, onError)}
         className="flex flex-col h-full bg-[#080812] text-foreground overflow-hidden"
       >
         <TaskFormHeader
@@ -218,7 +270,7 @@ export function TaskForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name={"status" as keyof TaskFormValues}
+                    name="status"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
@@ -357,14 +409,14 @@ export function TaskForm({
                   />
                 </div>
 
-                {/* Assignee */}
+                {/* Assignees */}
                 <FormField
                   control={form.control}
-                  name="assignee"
+                  name="assignees"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
-                        Assignee
+                        Assignees
                       </FormLabel>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -374,18 +426,23 @@ export function TaskForm({
                               className={dropdownBtnCls}
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
-                                {field.value ? (
-                                  <>
-                                    <Avatar className="h-6 w-6 shrink-0">
-                                      <AvatarImage src={field.value.image} />
-                                      <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-black">
-                                        {field.value.initials}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium text-white truncate">
-                                      {field.value.name}
+                                {field.value && field.value.length > 0 ? (
+                                  <div className="flex -space-x-2">
+                                    {field.value.map((user, idx) => (
+                                      <Avatar
+                                        key={idx}
+                                        className="h-6 w-6 border-2 border-[#080812] shrink-0"
+                                      >
+                                        <AvatarImage src={user.image} />
+                                        <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-black">
+                                          {user.initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    <span className="ml-2 font-medium text-white truncate text-xs self-center">
+                                      {field.value.length} Assigned
                                     </span>
-                                  </>
+                                  </div>
                                 ) : (
                                   <>
                                     <User className="h-4 w-4 text-white/30 shrink-0" />
@@ -406,34 +463,52 @@ export function TaskForm({
                             Team Members
                           </DropdownMenuLabel>
                           <DropdownMenuSeparator className="bg-white/6" />
-                          {ASSIGNEES_PRESET.map((user) => (
-                            <DropdownMenuItem
-                              key={user.name}
-                              className={dropdownItemCls}
-                              onClick={() => field.onChange(user)}
-                            >
-                              <Avatar className="h-6 w-6 shrink-0">
-                                <AvatarImage src={user.image} />
-                                <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-black">
-                                  {user.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium text-sm text-white/80 truncate">
-                                {user.name}
-                              </span>
-                              {field.value?.name === user.name && (
-                                <Check className="ml-auto h-3.5 w-3.5 text-primary shrink-0" />
-                              )}
-                            </DropdownMenuItem>
-                          ))}
-                          {field.value && (
+                          {ASSIGNEES_PRESET.map((user) => {
+                            const isSelected = field.value?.some(
+                              (u) => u.name === user.name,
+                            );
+                            return (
+                              <DropdownMenuItem
+                                key={user.name}
+                                className={dropdownItemCls}
+                                onClick={() => {
+                                  const current = field.value || [];
+                                  if (isSelected) {
+                                    field.onChange(
+                                      current.filter(
+                                        (u) => u.name !== user.name,
+                                      ),
+                                    );
+                                  } else {
+                                    field.onChange([...current, user]);
+                                  }
+                                }}
+                              >
+                                <Avatar className="h-6 w-6 shrink-0">
+                                  <AvatarImage src={user.image} />
+                                  <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-black">
+                                    {user.initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium text-sm text-white/80 truncate">
+                                  {user.name}
+                                </span>
+                                {isSelected && (
+                                  <Check className="ml-auto h-3.5 w-3.5 text-primary shrink-0" />
+                                )}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                          {field.value && field.value.length > 0 && (
                             <>
                               <DropdownMenuSeparator className="bg-white/6" />
                               <DropdownMenuItem
                                 className="gap-2 py-2 cursor-pointer text-red-400/70 focus:bg-red-500/10 focus:text-red-400"
-                                onClick={() => field.onChange(null)}
+                                onClick={() => field.onChange([])}
                               >
-                                <span className="text-sm">Remove assignee</span>
+                                <span className="text-sm">
+                                  Clear all assignees
+                                </span>
                               </DropdownMenuItem>
                             </>
                           )}
@@ -518,8 +593,9 @@ export function TaskForm({
                 className="p-4 sm:p-6"
               >
                 <TaskChecklist
-                  objectives={objectives}
-                  onChange={setObjectives}
+                  taskId={initialData?.id}
+                  objectives={checklist}
+                  onChange={setChecklist}
                 />
               </motion.div>
             )}
@@ -533,7 +609,7 @@ export function TaskForm({
                 transition={{ duration: 0.15 }}
                 className="p-4 sm:p-6"
               >
-                <TaskDiscussion />
+                <TaskDiscussion task={initialData as Task} />
               </motion.div>
             )}
           </AnimatePresence>
