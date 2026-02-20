@@ -1,104 +1,94 @@
 # TaskForge 🚀
 
-A modern, high-performance project and task management application built with a premium design aesthetic and a robust backend.
+TaskForge is a high-performance, enterprise-ready project management ecosystem. It combines a sophisticated **Glassmorphism UI** with a scalable **Node.js/Prisma** infrastructure to deliver a state-of-the-art team collaboration platform.
 
-## 🛠 Tech Stack
+---
 
-### Frontend (Client)
+## � Documentation Hub
 
-- **Framework:** [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Language:** [TypeScript](https://www.typescriptlang.org/)
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **UI Components:** [Radix UI](https://www.radix-ui.com/) (Shadcn patterns)
-- **Animations:** [Framer Motion](https://www.framer.com/motion/)
-- **Charts:** [Recharts](https://recharts.org/)
-- **Forms:** [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
-- **Routing:** [React Router v7](https://reactrouter.com/)
+For deep dives into specific areas of the ecosystem, please refer to our professional documentation:
 
-### Backend (Server)
+### 🏛 [System Architecture](./docs/ARCHITECTURE.md)
 
-- **Runtime:** [Node.js](https://nodejs.org/)
-- **Framework:** [Express v5](https://expressjs.com/)
-- **Language:** [TypeScript](https://www.typescriptlang.org/)
-- **ORM:** [Prisma v7](https://www.prisma.io/)
-- **Database:** [PostgreSQL](https://www.postgresql.org/)
-- **Authentication:** [JWT](https://jwt.io/) (Access & Refresh Tokens)
-- **Hashing:** [Bcryptjs](https://github.com/dcodeIO/bcrypt.js)
-- **Documentation:** [Scalar](https://scalar.com/) + [Swagger JSDoc](https://github.com/Surnet/swagger-jsdoc)
-- **Validation:** [Zod](https://zod.dev/)
-- **File Uploads:** [Multer](https://github.com/expressjs/multer)
+_Technical overview of the end-to-end system flow, security model, and database design._
 
-## ✨ Key Features
+### 🎨 [Frontend Components](./docs/COMPONENTS.md)
 
-### 🔐 Authentication
+_Detailed breakdown of the React 19 component library, design system, and state management._
 
-- **User Registration:** Support for profile image uploads and role selection (`SUPER_USER`, `PROJECT_MANAGER`, `MEMBER`).
-- **Secure Login:** JWT-based authentication with "Remember Me" support (extends session to 7 days).
-- **Password Hashing:** Industry-standard security using bcrypt.
+### 🧠 [Backend Logic & Controllers](./server/docs/CONTROLLERS.md)
 
-### 📊 Project & Task Management
+_Deep dive into business logic orchestration, RBAC implementation, and database persistence layers._
 
-- **Dashboard:** Overview of projects, productivity charts, and recent tasks.
-- **Projects:** Create and manage projects with status tracking (`ON_TRACK`, `AT_RISK`, `DELAYED`, `COMPLETED`).
-- **Tasks:** Kanban-style task management with priorities, assignees, and progress tracking.
-- **Team Management:** Role-based access control within projects.
+### � [Detailed API Reference](./docs/API.md)
 
-### 📖 API Documentation
+_Granular documentation of all RESTful endpoints, request/response schemas, and authentication._
 
-- Interactive API reference powered by **Scalar**. Available at `/reference` on the server.
+---
 
-## 🚀 Getting Started
+## � Core Value Propositions
 
-### Prerequisites
+- **Precision Task Tracking**: Dynamic Kanban workflows with high-fidelity detail views.
+- **Audit-Ready Activity Logs**: Automatic project-wide tracing of every team action.
+- **Glassmorphism Design System**: A premium, modern aesthetic focused on user focus and clarity.
+- **Multi-Tenant Scoping**: Strict project-level isolation and hierarchical RBAC.
+
+---
+
+## 🛠 Technology Stack
+
+| Layer        | Technologies                                            |
+| :----------- | :------------------------------------------------------ |
+| **Frontend** | React 19, Vite, Tailwind CSS v4, Framer Motion, Zustand |
+| **Backend**  | Node.js (Express v5), Prisma v7, Zod Validation         |
+| **Database** | PostgreSQL                                              |
+| **DevOps**   | Scalar API Docs, Swagger JSDoc, JWT Auth                |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
 
 - Node.js (v20+)
 - PostgreSQL
 
-### Installation
+### 2. Environment Configuration
 
-1. **Clone the repository:**
+Create a `.env` in the `/server` directory:
 
-   ```bash
-   git clone https://github.com/TasnimurRahmanShakir/TaskForge.git
-   cd TaskForge
-   ```
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/taskforge"
+JWT_SECRET="your_secure_secret"
+```
 
-2. **Backend Setup:**
+### 3. Deployment
 
-   ```bash
-   cd server
-   npm install
-   # Create .env file based on the implementation plan
-   # Run migrations
-   npx prisma migrate dev
-   npm run dev
-   ```
+```bash
+# Setup Backend
+cd server && npm install
+npx prisma migrate dev
+npm run dev
 
-3. **Frontend Setup:**
-   ```bash
-   cd client
-   npm install
-   npm run dev
-   ```
+# Setup Frontend
+cd ../client && npm install
+npm run dev
+```
 
-## 📁 Directory Structure
+---
+
+## 📁 Repository Structure
 
 ```text
 TaskForge/
-├── client/           # React frontend application
-│   ├── src/          # Source code
-│   │   ├── components/ # Reusable UI components
-│   │   ├── pages/      # Application views
-│   │   └── lib/        # Utilities and config
-├── server/           # Express backend API
-│   ├── src/          # Source code
-│   │   ├── controllers/ # Request handlers
-│   │   ├── routes/     # API endpoints
-│   │   ├── config/     # Database and documentation config
-│   │   └── utils/      # Helpers and schemas
-│   └── prisma/       # Database schema and migrations
+├── client/          # Premium React 19 Application
+├── server/          # High-Performance API Infrastructure
+├── docs/            # Granular System Documentation
+└── prisma/          # Persistence Schema & Migrations
 ```
 
-## 📜 License
+---
 
-This project is for demonstration purposes.
+## 📜 Development & License
+
+Developed for high-performance team collaboration demonstration. All rights reserved.
