@@ -369,7 +369,7 @@ export const updateTask = catchAsync(
           : undefined,
         checklistItems: checklist
           ? {
-              // Intelligently sync checklist items
+              // 1. Delete items not in the new list
               deleteMany: {
                 id: {
                   notIn: checklist
@@ -377,19 +377,27 @@ export const updateTask = catchAsync(
                     .map((item: any) => item.id),
                 },
               },
-              upsert: checklist.map((item: any) => ({
-                where: {
-                  id: item.id || "00000000-0000-0000-0000-000000000000",
-                },
-                update: {
+              // 2. Create entirely new items
+              create: checklist
+                .filter((item: any) => !item.id)
+                .map((item: any) => ({
                   title: item.title,
                   completed: item.completed ?? false,
-                },
-                create: {
-                  title: item.title,
-                  completed: item.completed ?? false,
-                },
-              })),
+                })),
+              // 3. Update existing items
+              upsert: checklist
+                .filter((item: any) => item.id)
+                .map((item: any) => ({
+                  where: { id: item.id },
+                  update: {
+                    title: item.title,
+                    completed: item.completed ?? false,
+                  },
+                  create: {
+                    title: item.title,
+                    completed: item.completed ?? false,
+                  },
+                })),
             }
           : undefined,
       },
@@ -508,6 +516,15 @@ export const deleteTask = catchAsync(
       where: { id },
     });
 
+    // Log Activity at project level
+    await prisma.activityLog.create({
+      data: {
+        description: `Task "${task.title}" deleted by ${req.user!.name}`,
+        projectId: task.projectId,
+        userId: userId,
+      },
+    });
+
     res.status(204).json({
       status: "success",
       data: null,
@@ -528,13 +545,19 @@ export const toggleChecklistItem = catchAsync(
     const itemId = req.params.itemId as string;
     const userId = req.user!.id;
 
+    const isSuperUser = req.user!.role === "SUPER_USER";
+
     // Verify access
     const task = await prisma.task.findFirst({
       where: {
         id: taskId,
-        project: {
-          OR: [{ managerId: userId }, { members: { some: { userId } } }],
-        },
+        ...(isSuperUser
+          ? {}
+          : {
+              project: {
+                OR: [{ managerId: userId }, { members: { some: { userId } } }],
+              },
+            }),
       },
     });
 
@@ -569,8 +592,9 @@ export const toggleChecklistItem = catchAsync(
     // 2. Log Activity
     await prisma.activityLog.create({
       data: {
-        description: `${updatedItem.completed ? "Checked" : "Unchecked"} item: "${updatedItem.title}" in task: "${task.title}"`,
+        description: `${updatedItem.completed ? "Checked" : "Unchecked"} item: "${updatedItem.title}" in task: "${task.title}" by ${req.user!.name}`,
         taskId: taskId,
+        projectId: task.projectId,
         userId: userId,
       },
     });

@@ -53,7 +53,7 @@ export const createComment = catchAsync(
     // Log Activity
     await prisma.activityLog.create({
       data: {
-        description: `Commented on task: "${task.title}"`,
+        description: `Commented on task: "${task.title}" by ${req.user!.name}`,
         taskId: taskId,
         projectId: task.projectId,
         userId: authorId,

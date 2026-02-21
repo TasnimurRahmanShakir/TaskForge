@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Calendar,
   MoreHorizontal,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type { Task, ColumnId } from "@/lib/types";
 import { getImageUrl } from "@/lib/media";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface WorkflowStep {
   label: string;
@@ -74,6 +76,7 @@ interface TaskCardProps {
     toColumnId: ColumnId,
   ) => void;
   onDelete?: (taskId: string | number, columnId: ColumnId) => void;
+  isManagerOrLeader?: boolean;
 }
 
 export function TaskCard({
@@ -82,9 +85,16 @@ export function TaskCard({
   onClick,
   onStatusChange,
   onDelete,
+  isManagerOrLeader = false,
 }: TaskCardProps) {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const { title, priority, tags, dueDate, assignees, image } = task;
+
+  const isGlobalAdmin =
+    user?.role === "SUPER_USER" || user?.role === "PROJECT_MANAGER";
+  const canVerify = isGlobalAdmin || isManagerOrLeader;
+
   const action = WORKFLOW[columnId];
 
   const handleCardClick = () => {
@@ -95,6 +105,8 @@ export function TaskCard({
     e.stopPropagation();
     if (action) onStatusChange?.(task.id, columnId, action.next);
   };
+
+  const shouldShowAction = action && (columnId !== "review" || canVerify);
 
   return (
     <div
@@ -208,7 +220,7 @@ export function TaskCard({
         </div>
       )}
 
-      {action && (
+      {shouldShowAction && (
         <button
           onClick={handleAction}
           className={cn(
@@ -245,9 +257,9 @@ export function TaskCard({
                 key={i}
                 className="h-6 w-6 border-2 border-[#1a1a2e] ring-2 ring-[#0d0d1a]"
               >
-                <AvatarImage src={getImageUrl(a.user.profileImage)} />
+                <AvatarImage src={getImageUrl(a.user?.profileImage)} />
                 <AvatarFallback className="text-[8px] bg-primary/20 text-primary">
-                  {a.user.name.substring(0, 2)}
+                  {a.user?.name?.substring(0, 2) || "??"}
                 </AvatarFallback>
               </Avatar>
             ))}

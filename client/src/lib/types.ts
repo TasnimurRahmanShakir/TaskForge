@@ -99,6 +99,7 @@ export interface Project {
   description?: string;
   managerId: string;
   manager: ProjectManager;
+  teamLeaderId?: string | null;
   startDate: string;
   endDate?: string;
   status: ProjectStatus;

@@ -17,6 +17,7 @@ interface KanbanBoardProps {
     toColumnId: ColumnId,
   ) => void;
   onDelete: (taskId: string | number, columnId: ColumnId) => void;
+  isManagerOrLeader?: boolean;
 }
 
 export function KanbanBoard({
@@ -24,6 +25,7 @@ export function KanbanBoard({
   onTaskClick,
   onStatusChange,
   onDelete,
+  isManagerOrLeader,
 }: KanbanBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -69,6 +71,7 @@ export function KanbanBoard({
             onTaskClick={onTaskClick}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
+            isManagerOrLeader={isManagerOrLeader}
           />
         ))}
         <div className="w-[280px] sm:w-[350px] shrink-0 h-full flex flex-col pt-1">

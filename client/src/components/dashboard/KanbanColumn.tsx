@@ -18,6 +18,7 @@ interface KanbanColumnProps {
     toColumnId: ColumnId,
   ) => void;
   onDelete: (taskId: string | number, columnId: ColumnId) => void;
+  isManagerOrLeader?: boolean;
 }
 
 export function KanbanColumn({
@@ -29,6 +30,7 @@ export function KanbanColumn({
   onTaskClick,
   onStatusChange,
   onDelete,
+  isManagerOrLeader,
 }: KanbanColumnProps) {
   return (
     <div className="flex flex-col w-[280px] sm:w-[350px] shrink-0 h-full">
@@ -57,12 +59,24 @@ export function KanbanColumn({
               onClick={() => onTaskClick(task)}
               onStatusChange={onStatusChange}
               onDelete={onDelete}
+              isManagerOrLeader={isManagerOrLeader}
             />
           ))}
           <HasPermission roles={["SUPER_USER", "PROJECT_MANAGER", "MEMBER"]}>
             <button
               onClick={() =>
-                onTaskClick({ id: 0, title: "", priority: "Medium" })
+                onTaskClick({
+                  id: "0",
+                  title: "",
+                  priority: "Medium",
+                  status: "BACKLOG",
+                  tags: [],
+                  assignees: [],
+                  checklistItems: [],
+                  activityLogs: [],
+                  createdAt: new Date().toISOString(),
+                  projectId: "",
+                })
               }
               className="w-full py-3 h-12 rounded-xl border border-dashed border-white/5 text-muted-foreground/30 hover:text-white/60 hover:border-white/20 transition-all font-bold text-xs flex items-center justify-center gap-2 group"
             >

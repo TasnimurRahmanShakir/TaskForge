@@ -38,12 +38,10 @@ import type {
 } from "@/lib/types";
 import { api } from "@/lib/api";
 import { getImageUrl } from "@/lib/media";
-
-const INITIAL_BOARD: KanbanColumn[] = [
-  // ... (keeping INITIAL_BOARD for now, will replace with real task fetching soon)
-];
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function ProjectDetailsPage() {
+  const { user } = useAuthStore();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
@@ -63,6 +61,9 @@ export default function ProjectDetailsPage() {
   const [isTaskOpen, setIsTaskOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Partial<Task> | null>(null);
   const [viewMode, setViewMode] = useState<"board" | "activity">("board");
+
+  const isManagerOrLeader =
+    user?.id === project?.managerId || user?.id === project?.teamLeaderId;
 
   const fetchProjectAndTasks = async () => {
     try {
@@ -88,26 +89,41 @@ export default function ProjectDetailsPage() {
         const mappedTask: Task = {
           id: t.id,
           projectId: t.projectId,
-          title: t.title,
-          priority: t.priority,
+          title: t.title || "Untitled Task",
+          priority: t.priority || "Medium",
           status: t.status,
           dueDate: t.dueDate
-            ? new Date(t.dueDate).toLocaleDateString()
+            ? new Date(t.dueDate).toISOString().split("T")[0]
             : undefined,
-          description: t.description,
+          description: t.description || "",
           image: t.image,
-          tags: t.tags,
-          assignees: t.assignees,
-          checklistItems: t.checklistItems,
+          tags: t.tags || [],
+          assignees: t.assignees || [],
+          checklistItems: t.checklistItems || [],
           activityLogs: t.activityLogs || [],
-          createdAt: t.createdAt,
+          createdAt: t.createdAt || new Date().toISOString(),
         };
 
-        const statusKey = t.status.toLowerCase().replace("_", "");
-        if (groupedTasks[statusKey]) {
-          groupedTasks[statusKey].push(mappedTask);
-        } else if (t.status === "BACKLOG") {
+        const status = t.status as string;
+        if (status === "BACKLOG") {
           groupedTasks["todo"].push(mappedTask);
+        } else if (status === "IN_PROGRESS") {
+          groupedTasks["inprogress"].push(mappedTask);
+        } else if (status === "IN_REVIEW") {
+          groupedTasks["review"].push(mappedTask);
+        } else if (status === "COMPLETED") {
+          groupedTasks["done"].push(mappedTask);
+        } else {
+          // Fallback for any other lowercase/mixed casing
+          const statusKey = status.toLowerCase().replace("_", "");
+          if (statusKey === "todo" || statusKey === "backlog")
+            groupedTasks["todo"].push(mappedTask);
+          else if (statusKey === "inprogress")
+            groupedTasks["inprogress"].push(mappedTask);
+          else if (statusKey === "inreview")
+            groupedTasks["review"].push(mappedTask);
+          else if (statusKey === "done" || statusKey === "completed")
+            groupedTasks["done"].push(mappedTask);
         }
       });
 
@@ -128,23 +144,54 @@ export default function ProjectDetailsPage() {
     if (id) fetchProjectAndTasks();
   }, [id]);
 
-  const handleStatusChange = (
+  const handleStatusChange = async (
     taskId: string | number,
     fromColumnId: ColumnId,
     toColumnId: ColumnId,
   ) => {
+    // 1. Optimistic Update
     setBoardData((prev) => {
       const fromCol = prev.find((c) => c.id === fromColumnId);
       const task = fromCol?.tasks.find((t) => t.id === taskId);
       if (!task) return prev;
+
+      const updatedTask = {
+        ...task,
+        status: (toColumnId === "todo"
+          ? "BACKLOG"
+          : toColumnId === "inprogress"
+            ? "IN_PROGRESS"
+            : toColumnId === "review"
+              ? "IN_REVIEW"
+              : "COMPLETED") as any,
+      };
+
       return prev.map((col) => {
         if (col.id === fromColumnId)
           return { ...col, tasks: col.tasks.filter((t) => t.id !== taskId) };
         if (col.id === toColumnId)
-          return { ...col, tasks: [...col.tasks, task] };
+          return { ...col, tasks: [...col.tasks, updatedTask] };
         return col;
       });
     });
+
+    // 2. Persist to Backend
+    try {
+      const mappedStatus =
+        toColumnId === "todo"
+          ? "BACKLOG"
+          : toColumnId === "inprogress"
+            ? "IN_PROGRESS"
+            : toColumnId === "review"
+              ? "IN_REVIEW"
+              : "COMPLETED";
+
+      await api.patch(`/tasks/${taskId}`, { status: mappedStatus });
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+      // 3. Rollback on Error
+      fetchProjectAndTasks(); // Simple way to sync back
+    }
   };
 
   const handleAddTask = () => {
@@ -215,7 +262,7 @@ export default function ProjectDetailsPage() {
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
             <div className="flex -space-x-1.5 sm:-space-x-2 shrink-0">
               <Avatar className="h-7 w-7 sm:h-8 sm:w-8 border-2 border-[#0d0d1a]">
-                {project.manager.profileImage ? (
+                {project.manager?.profileImage ? (
                   <AvatarImage
                     src={getImageUrl(project.manager.profileImage)}
                     alt={project.manager.name}
@@ -231,7 +278,7 @@ export default function ProjectDetailsPage() {
                   key={i}
                   className="h-7 w-7 sm:h-8 sm:w-8 border-2 border-[#0d0d1a]"
                 >
-                  {member.user.profileImage ? (
+                  {member.user?.profileImage ? (
                     <AvatarImage
                       src={getImageUrl(member.user.profileImage)}
                       alt={member.user.name}
@@ -382,6 +429,7 @@ export default function ProjectDetailsPage() {
                     onTaskClick={handleEditTask}
                     onStatusChange={handleStatusChange}
                     onDelete={handleDelete}
+                    isManagerOrLeader={isManagerOrLeader}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-[50vh] text-center space-y-4 animate-in fade-in zoom-in duration-300">

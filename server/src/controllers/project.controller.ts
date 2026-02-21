@@ -91,6 +91,15 @@ export const createProject = catchAsync(
       status: "success",
       data: { project },
     });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        description: `Project "${project.name}" created by ${req.user!.name}`,
+        projectId: project.id,
+        userId: req.user!.id,
+      },
+    });
   },
 );
 
@@ -250,6 +259,15 @@ export const updateProject = catchAsync(
     res.status(200).json({
       status: "success",
       data: { project: updatedProject },
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        description: `Project details updated by ${req.user!.name}`,
+        projectId: id,
+        userId: userId,
+      },
     });
   },
 );

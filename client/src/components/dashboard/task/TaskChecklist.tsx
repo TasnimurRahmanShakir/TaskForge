@@ -85,21 +85,19 @@ export function TaskChecklist({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex items-center gap-3 group p-3 rounded-xl bg-white/2 border border-white/6 hover:border-white/10 transition-all"
+              onClick={() => toggleItem(i)}
+              className="flex items-center gap-3 group p-3 rounded-xl bg-white/2 border border-white/6 hover:border-primary/30 hover:bg-white/4 transition-all cursor-pointer"
             >
-              <button
-                type="button"
-                onClick={() => toggleItem(i)}
-                aria-label={obj.completed ? "Mark incomplete" : "Mark complete"}
+              <div
                 className={cn(
                   "h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
                   obj.completed
                     ? "bg-primary border-primary text-primary-foreground"
-                    : "border-white/20 hover:border-primary/60",
+                    : "border-white/20 group-hover:border-primary/60",
                 )}
               >
                 {obj.completed && <Check className="h-3 w-3 stroke-3" />}
-              </button>
+              </div>
               <span
                 className={cn(
                   "flex-1 text-sm font-medium transition-all",
@@ -112,9 +110,12 @@ export function TaskChecklist({
               </span>
               <button
                 type="button"
-                onClick={() => removeItem(i)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeItem(i);
+                }}
                 aria-label="Remove item"
-                className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 p-1 rounded-lg hover:bg-red-500/10 transition-all"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
